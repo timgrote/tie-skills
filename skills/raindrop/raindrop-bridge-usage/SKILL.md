@@ -32,7 +32,7 @@ Canonical sequence for "lay out sprinklers around these boundaries":
 
 1. **`GET /layers?search=perimeter`** → resolve the boundary layer's real name.
 2. **`POST /op {"name":"sprinkler-series","manufacturer":"..."}`** → pick a series key. **Pitfall:** Rain Bird is stored as `"Rain Bird"` (with a space) — filtering `manufacturer:"RainBird"` returns 0. Filter `"Rain Bird"` or omit the filter.
-3. **`POST /op {"name":"sprinkler-block-check","series":"<key>"}`** → verify insertable block artwork BEFORE committing. **This is the gate that saves you:** a series whose nozzles map to an `Auto` placeholder block (`allInsertable:false`, `missingBlocks:['Auto']`) will place invisible heads. Do NOT commit such a series — tell the user the drawing lacks that block artwork.
+3. **`POST /op {"name":"sprinkler-block-check","series":"<key>"}`** → **ADVISORY, not authoritative.** A `false`/`allInsertable:false` here means the *catalog series* rows carry an `Auto` placeholder `BlockName` (gear-drive rotors: Rain Bird 5000, Hunter I-20/I-25). It does **NOT** mean the layout can't work — if a sprinkler is selected in the palette, or a real head exists in the drawing, the insert path resolves a live block and succeeds. **Do not refuse based on block-check alone. The authoritative test is `layout-boundary-preview` — it writes nothing, so just run it and trust its result over block-check.**
 4. **`POST /find {"layer":"<name>","closedPolylines":true}`** → boundary handles.
 5. **`POST /op {"name":"layout-boundary-preview","handles":[...],"series":"<key>"}`** → dry-run placements (position, arc, aim, adjustedRadius) without writing. Inspect before committing.
 6. **`POST /op {"name":"layout-boundary-commit","handles":[...],"series":"<key>"}`** → insert real heads.
