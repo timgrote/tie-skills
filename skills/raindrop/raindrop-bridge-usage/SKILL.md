@@ -51,8 +51,31 @@ though heads were placed).
 ## Series discovery quirks
 
 - `sprinkler-series` without a filter returns ~377 series (imperial). Filter by manufacturer.
-- Manufacturer strings have spaces: `Rain Bird`, `Hunter`, `Toro`.
+- Manufacturer strings have spaces: `Rain Bird`, `Hunter`, `Toro`. (Filtering `manufacturer:"RainBird"` — no space — returns 0.)
 - Adjustable gear-drive rotors (Rain Bird 5000, Hunter I-20/I-25) may have NO block artwork in a given drawing (`Auto` placeholder) — verify with block-check; only fixed-arc MPR nozzles (e.g. `Rain Bird_1800 MPR_30`) reliably have real blocks.
+- Series keys are `Manufacturer_Model_Pressure`, e.g. `Rain Bird_1800 MPR_30`, `Rain Bird_5000_35`. Check the exact key from `sprinkler-series` output — `_30`/`_40` variants of some series don't exist and return an error, not an empty result.
+
+## Verified end-to-end example (Unit Test-Feet.dwg, 2026-08-15)
+
+Test drawing: `D:\Dropbox\Raindrop Dev Work\Unit Examples\Unit Test-Feet.dwg` (feet units).
+
+Layer names on this drawing: `3284-Perimeter Spray` (5 boundaries) and `3284-Perimeter Rotor` (3 boundaries).
+
+Spray layer, Rain Bird 1800 MPR_30 — **works end-to-end**:
+```bash
+curl -s -X POST localhost:5599/op -H "Content-Type: application/json" \
+  -d '{"name":"layout-boundary-commit","handles":["144E","144F","1452","145C","1472"],"series":"Rain Bird_1800 MPR_30"}'
+# → placed:159, validBoundaries:5, degenerate:0, failedInsert:0, but uncontainedPlacementCount:1
+#   (159 real heads inserted; 1 landed outside its boundary → status:"error" despite the insert)
+```
+
+Rotor layer, Rain Bird 5000 — **blocked by missing artwork**:
+```bash
+curl -s -X POST localhost:5599/op -H "Content-Type: application/json" \
+  -d '{"name":"sprinkler-block-check","series":"Rain Bird_5000_35"}'
+# → allInsertable:false, missingBlocks:["Auto"]  — every 5000 variant maps to an Auto placeholder.
+```
+Every Rain Bird 5000 variant (`5000_25/35/45/55/65`, `5000-MPR_*`, `5000-PRS_*`) and Hunter rotors (`I-20`, `I-25`) share the `Auto` placeholder problem in this drawing. The tool correctly refuses to place invisible heads — tell the user the drawing lacks that block artwork rather than forcing a layout.
 
 ## When the model "can't do X"
 
