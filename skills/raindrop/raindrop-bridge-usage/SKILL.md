@@ -77,6 +77,16 @@ curl -s -X POST localhost:5599/op -H "Content-Type: application/json" \
 ```
 Every Rain Bird 5000 variant (`5000_25/35/45/55/65`, `5000-MPR_*`, `5000-PRS_*`) and Hunter rotors (`I-20`, `I-25`) share the `Auto` placeholder problem in this drawing. The tool correctly refuses to place invisible heads — tell the user the drawing lacks that block artwork rather than forcing a layout.
 
+## The 5000 mystery — series-PRESSURE mismatch (2026-08-15, root-caused)
+
+The rotor layout failed repeatedly with "no insertable heads found" until the real cause was found: **the series key must match the drawing's MAPPED set, not the static catalog.**
+
+- `sprinkler-series` reads the **static catalog** (`AID_Application.*Sprinklers`). It lists `Rain Bird_5000_35` etc. — but those catalog rows carry `BlockName="Auto"` (an unresolved placeholder), so a layout with them fails.
+- The **drawing's mapped** catalog — what the palette actually shows and what inserts — is `Rain Bird_5000_55`, with real `SPR0~...` rotor blocks (`liveBlock=true`). This is read via `ActiveDWGSprinklers()`, NOT the static catalog.
+- **Lesson: before a boundary layout, query the drawing's mapped catalog (`sprinkler-catalog`) to find the ACTUAL series key present, and use that exact key.** Don't pick a series from `sprinkler-series` (catalog) and assume it's insertable in the drawing. The pressure suffix matters — `_55` vs `_35` are different series.
+
+New bridge verb (added 2026-08-15): **`sprinkler-catalog`** dumps the drawing's mapped set — `{name:"sprinkler-catalog", manufacturer?:'Rain Bird', series?:'Rain Bird 5000'}` → each entry: id, series, manufacturer, model, nozzle, pressure, radius, flow, blockName, isFullCircle, hasLiveBlockDef. This is the ground truth for "what's actually insertable in THIS drawing."
+
 ## When the model "can't do X"
 
 If Enki claims a supported action isn't available, the tool manifest is stale.
